@@ -1,0 +1,178 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  avatar        String?
+  phone         String?
+  location      String?
+  bio           String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  listings      Listing[]
+  matchesAs1    Match[]   @relation("user1Matches")
+  matchesAs2    Match[]   @relation("user2Matches")
+  sentMessages  Message[] @relation("sentMessages")
+  receivedMessages Message[] @relation("receivedMessages")
+
+  @@map("users")
+}
+
+model Listing {
+  id                  String    @id @default(cuid())
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Core car info
+  title               String
+  make                String
+  model               String
+  year                Int
+  mileage             Int
+  fuelType            FuelType
+  transmission        Transmission
+  bodyType            BodyType?
+  color               String?
+  doors               Int?
+  power               Int?       // kW or HP
+  engineSize          Float?     // in liters
+
+  // Pricing
+  price               Float?
+  priceNegotiable     Boolean   @default(false)
+
+  // Content
+  description         String?
+  features            String[]  @default([])
+
+  // Exchange fields
+  openToExchange      Boolean   @default(false)
+  lookingForMakes     String[]  @default([])
+  lookingForModels    String[]  @default([])
+  cashAdjustment      Boolean   @default(false)
+  exchangeNotes       String?
+
+  // Status
+  status              ListingStatus @default(ACTIVE)
+  views               Int       @default(0)
+  featured            Boolean   @default(false)
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  images              Image[]
+  matchesAs1          Match[]   @relation("listing1Matches")
+  matchesAs2          Match[]   @relation("listing2Matches")
+
+  @@map("listings")
+  @@index([make, model])
+  @@index([userId])
+  @@index([openToExchange])
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  url       String
+  order     Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("images")
+}
+
+model Match {
+  id         String      @id @default(cuid())
+  listing1Id String
+  listing2Id String
+  user1Id    String
+  user2Id    String
+
+  listing1   Listing     @relation("listing1Matches", fields: [listing1Id], references: [id], onDelete: Cascade)
+  listing2   Listing     @relation("listing2Matches", fields: [listing2Id], references: [id], onDelete: Cascade)
+  user1      User        @relation("user1Matches", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2      User        @relation("user2Matches", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  status     MatchStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  messages   Message[]
+
+  @@unique([listing1Id, listing2Id])
+  @@map("matches")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  matchId    String
+  match      Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation("sentMessages", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("receivedMessages", fields: [receiverId], references: [id])
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@map("messages")
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  PLUG_IN_HYBRID
+  LPG
+  CNG
+  HYDROGEN
+}
+
+enum Transmission {
+  MANUAL
+  AUTOMATIC
+  SEMI_AUTOMATIC
+  CVT
+}
+
+enum BodyType {
+  SEDAN
+  HATCHBACK
+  SUV
+  COUPE
+  CONVERTIBLE
+  WAGON
+  VAN
+  PICKUP
+  MINIVAN
+  CROSSOVER
+}
+
+enum ListingStatus {
+  ACTIVE
+  INACTIVE
+  SOLD
+  EXCHANGED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
